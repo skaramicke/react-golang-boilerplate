@@ -1,0 +1,52 @@
+version: "3"
+
+services:
+  
+  proxy:
+    image: nginx:latest
+    volumes:
+      - ${PWD}/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "80:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - backend-air
+      - frontend
+  
+  ui-deps:
+    image: 'ui-deps:latest'
+    build:
+      context: './ui'
+      dockerfile: 'deps.Dockerfile'
+    volumes:
+      - 'node_modules:/node_modules'
+
+  frontend:
+    image: 'node:14-alpine'
+    environment:
+      - 'PATH=$PATH:/root/.node_modules/.bin/'
+    restart: 'always'
+    volumes:
+      - './ui:/app'
+      - 'node_modules:/root/.node_modules'
+    working_dir: '/app'
+    entrypoint: 'yarn dev'
+    depends_on:
+      - 'ui-deps'
+    ports:
+      - '8081:8080'
+
+  backend-air:
+    build:
+      context: ./backend
+      dockerfile: air.Dockerfile
+    ports:
+      - 8082:8080
+    environment:
+      - 'CONFIG_FILENAME=/settings.yaml'
+    volumes:
+      - ${PWD}/backend:/app
+
+volumes:
+  node_modules:
